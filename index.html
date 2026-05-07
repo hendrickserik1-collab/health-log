@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Health Log">
@@ -33,8 +33,8 @@
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overscroll-behavior:none;}
-body{font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:80px;font-size:15px;}
+html{height:100%;}body{min-height:100%;overscroll-behavior-x:none;}
+body{font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:120px;font-size:15px;}
 
 /* HEADER */
 header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 18px 12px;position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;}
@@ -214,8 +214,9 @@ textarea{resize:none;height:72px;line-height:1.5;}
 
   <!-- FOOD ONLY -->
   <div id="form-food" style="display:none;">
+    <button class="save-btn" onclick="saveEntry()" style="margin-bottom:10px;">Save food entry</button>
     <div class="card">
-      <div class="field"><label>What did you eat or drink?</label><input type="text" id="f-name" placeholder="e.g. Oatmeal with berries"></div>
+      <div class="field"><label>What did you eat or drink?</label><textarea id="f-name" placeholder="e.g. Oatmeal with berries" style="height:72px;"></textarea></div>
       <div class="two-col">
         <div class="field"><label>Date</label><input type="date" id="f-date"></div>
         <div class="field"><label>Time</label><input type="time" id="f-time"></div>
@@ -226,11 +227,11 @@ textarea{resize:none;height:72px;line-height:1.5;}
       </div>
       <div class="field"><label>Notes / symptoms after eating</label><textarea id="f-notes" placeholder="How did you feel? Any reactions?"></textarea></div>
     </div>
-    <button class="save-btn" onclick="saveEntry()">Save food entry</button>
   </div>
 
   <!-- MED ONLY -->
   <div id="form-med" style="display:none;">
+    <button class="save-btn" onclick="saveEntry()" style="margin-bottom:10px;">Save medication entry</button>
     <div class="card">
       <div class="card-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
@@ -252,17 +253,17 @@ textarea{resize:none;height:72px;line-height:1.5;}
       </div>
       <div class="field"><label>Notes / side effects</label><input type="text" id="m-notes" placeholder="Optional"></div>
     </div>
-    <button class="save-btn" onclick="saveEntry()">Save medication entry</button>
   </div>
 
   <!-- FOOD + MEDS -->
   <div id="form-both" style="display:none;">
+    <button class="save-btn amber" onclick="saveEntry()" style="margin-bottom:10px;">Save meal + medications</button>
     <div class="card">
       <div class="card-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v4m0 0C9.5 9 8 11 8 13.5c0 3 2.5 5 4 6.5 1.5-1.5 4-3.5 4-6.5 0-2.5-1.5-4.5-4-4.5z"/></svg>
         Food / drink
       </div>
-      <div class="field"><label>What did you eat or drink?</label><input type="text" id="b-name" placeholder="e.g. Breakfast, coffee with toast"></div>
+      <div class="field"><label>What did you eat or drink?</label><textarea id="b-name" placeholder="e.g. Breakfast, coffee with toast" style="height:72px;"></textarea></div>
       <div class="two-col">
         <div class="field"><label>Date</label><input type="date" id="b-date"></div>
         <div class="field"><label>Time</label><input type="time" id="b-time"></div>
@@ -284,7 +285,6 @@ textarea{resize:none;height:72px;line-height:1.5;}
         </div>
       </div>
     </div>
-    <button class="save-btn amber" onclick="saveEntry()">Save meal + medications</button>
   </div>
 </div>
 
@@ -404,7 +404,7 @@ function setSyncStatus(state){
   el.textContent=s.t; el.style.color=s.c;
 }
 async function sheetPost(body){
-  const r=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify(body),headers:{'Content-Type':'text/plain'}});
+  const r=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify(body),headers:{'Content-Type':'text/plain'},redirect:'follow'});
   return r.json();
 }
 async function syncEntry(action,entry){
@@ -430,7 +430,12 @@ async function loadFromSheet(){
   setSyncStatus('syncing');
   showLoadingBanner('Loading your entries from Google Sheets…');
   try{
-    const r = await fetch(SCRIPT_URL+'?t='+Date.now());
+    const r = await fetch(SCRIPT_URL, {
+      method:'POST',
+      body: JSON.stringify({action:'getAll'}),
+      headers:{'Content-Type':'text/plain'},
+      redirect:'follow'
+    });
     const data = await r.json();
     if(data.status==='ok' && data.entries && data.entries.length){
       // Convert sheet rows back to app entry format
@@ -549,7 +554,32 @@ function showScreen(s){
 }
 
 // ── TYPE TOGGLE ───────────────────────────────────────────────────────────
+function formHasData(){
+  if(currentType==='food'){
+    return document.getElementById('f-name').value.trim() ||
+           document.getElementById('f-portion').value.trim() ||
+           document.getElementById('f-notes').value.trim();
+  } else if(currentType==='med'){
+    return presets.some(p=>isChecked('med',p.id)) ||
+           customMeds.length > 0 ||
+           document.getElementById('m-notes').value.trim();
+  } else {
+    return document.getElementById('b-name').value.trim() ||
+           presets.some(p=>isChecked('both',p.id)) ||
+           customMedsBoth.length > 0;
+  }
+}
+
 function setType(t){
+  if(t === currentType) return;
+  if(formHasData()){
+    showConfirmToast('You have unsaved data — switch anyway?', ()=>doSetType(t), null, 'Switch', '#C17B2A');
+    return;
+  }
+  doSetType(t);
+}
+
+function doSetType(t){
   currentType=t;
   ['food','med','both'].forEach(x=>{
     document.getElementById('form-'+x).style.display='none';
@@ -930,18 +960,19 @@ function deleteEntry(id){
     syncDelete(id);
   });
 }
-function showConfirmToast(msg, onYes, onNo){
-  // remove any existing confirm toast
+function showConfirmToast(msg, onYes, onNo, yesLabel, yesColor){
   const old=document.getElementById('confirm-toast');
   if(old)old.remove();
+  const label = yesLabel||'Delete';
+  const color = yesColor||'#C0392B';
   const div=document.createElement('div');
   div.id='confirm-toast';
-  div.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1E1E1E;color:white;padding:14px 18px;border-radius:16px;z-index:1000;display:flex;align-items:center;gap:14px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,0.2);white-space:nowrap;font-family:Source Sans 3,sans-serif;';
-  div.innerHTML=`<span>${msg}</span><button onclick="confirmYes()" style="background:#C0392B;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Delete</button><button onclick="confirmNo()" style="background:#444;color:white;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit;">Cancel</button>`;
+  div.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1E1E1E;color:white;padding:14px 18px;border-radius:16px;z-index:1000;display:flex;align-items:center;gap:14px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,0.2);white-space:nowrap;font-family:Source Sans 3,sans-serif;max-width:90vw;';
+  div.innerHTML=`<span style="white-space:normal;">${msg}</span><button onclick="confirmYes()" style="background:${color};color:white;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0;">${label}</button><button onclick="confirmNo()" style="background:#444;color:white;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:inherit;flex-shrink:0;">Cancel</button>`;
   document.body.appendChild(div);
   window._confirmYesCb=onYes;
   window._confirmNoCb=onNo||null;
-  window._confirmTimer=setTimeout(()=>confirmNo(),6000);
+  window._confirmTimer=setTimeout(()=>confirmNo(),8000);
 }
 function confirmYes(){
   clearTimeout(window._confirmTimer);
