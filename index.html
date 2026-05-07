@@ -213,7 +213,7 @@ textarea{resize:none;height:72px;line-height:1.5;}
   </div>
 
   <!-- FOOD ONLY -->
-  <div id="form-food" style="display:none;">
+  <div id="form-food" style="display:block;">
     <button class="save-btn" onclick="saveEntry()" style="margin-bottom:10px;">Save food entry</button>
     <div class="card">
       <div class="field"><label>What did you eat or drink?</label><textarea id="f-name" placeholder="e.g. Oatmeal with berries" style="height:72px;"></textarea></div>
@@ -1060,12 +1060,17 @@ function saveNewPreset(){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
-load();
-document.getElementById('hdate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
-document.getElementById('daily-date').value=todayStr();
-setType('food');
-setSyncStatus('syncing');
-loadFromSheet();
+document.addEventListener('DOMContentLoaded', function(){
+  load();
+  document.getElementById('hdate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  document.getElementById('daily-date').value=todayStr();
+  currentType='food';
+  resetForm('food');
+  buildChecklist('med-checklist','med');
+  buildChecklist('both-checklist','both');
+  setSyncStatus('syncing');
+  loadFromSheet();
+});
 </script>
 </body>
 </html>
